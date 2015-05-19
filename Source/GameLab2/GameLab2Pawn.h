@@ -8,6 +8,8 @@ class AGameLab2Pawn : public APawn
 {
 	GENERATED_BODY()
 
+public:
+
 	/** StaticMesh component that will be the visuals for our flying pawn */
 	UPROPERTY(Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* PlaneMesh;
@@ -19,7 +21,23 @@ class AGameLab2Pawn : public APawn
 	/** Camera component that will be our viewpoint */
 	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* Camera;
-public:
+
+	/** Collection Volume */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Power")
+	class USphereComponent* CollectionSphere;
+
+	/** Power level of the character */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Power")
+	float PowerLevel;
+
+	/** Power multiplier for the speed of the character */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Power")
+	float SpeedFactor;
+
+	/** Baseline speed of the character */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "Power")
+	float BaseSpeed;
+
 	AGameLab2Pawn(const FObjectInitializer& ObjectInitializer);
 
 	// Begin AActor overrides
@@ -28,6 +46,13 @@ public:
 	// End AActor overrides
 
 protected:
+	/** Called when we press a key, to collect any batteries inside the SphereComponent */
+	UFUNCTION(BlueprintCallable, category = "Power")
+	void CollectBatteries();
+
+	/** Called by CollectBatteries() to use the Blueprinted PowerUp functionality */
+	UFUNCTION(BlueprintImplementableEvent, Category = "Power")
+	void PowerUp(float BatteryPower);
 
 	// Begin APawn overrides
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override; // Allows binding actions/axes to functions

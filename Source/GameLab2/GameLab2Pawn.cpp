@@ -2,10 +2,17 @@
 
 #include "GameLab2.h"
 #include "GameLab2Pawn.h"
+#include "BatteryPickup.h"
 
-AGameLab2Pawn::AGameLab2Pawn(const FObjectInitializer& ObjectInitializer) 
+AGameLab2Pawn::AGameLab2Pawn(const FObjectInitializer & ObjectInitializer) 
 	: Super(ObjectInitializer)
 {
+	// Set a base power level for the character
+	PowerLevel = 2000.f;
+	// Set the dependence of speed on the powerlevel
+	SpeedFactor = 0.75f;
+	BaseSpeed = 10.f;
+
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
@@ -35,6 +42,11 @@ AGameLab2Pawn::AGameLab2Pawn(const FObjectInitializer& ObjectInitializer)
 	Camera->AttachTo(SpringArm, USpringArmComponent::SocketName);
 	Camera->bUsePawnControlRotation = false; // Don't rotate camera with controller
 
+	// Create our battery collection value
+	CollectionSphere = ObjectInitializer.CreateDefaultSubobject<USphereComponent>(this, TEXT("CollectionSphere"));
+	CollectionSphere->AttachTo(RootComponent);
+	CollectionSphere->SetSphereRadius(200.f);
+
 	// Set handling parameters
 	Acceleration = 500.f;
 	TurnSpeed = 50.f;
@@ -61,6 +73,8 @@ void AGameLab2Pawn::Tick(float DeltaSeconds)
 
 	// Call any parent class Tick implementation
 	Super::Tick(DeltaSeconds);
+
+	
 }
 
 void AGameLab2Pawn::ReceiveHit(class UPrimitiveComponent* MyComp, class AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
@@ -80,6 +94,7 @@ void AGameLab2Pawn::SetupPlayerInputComponent(class UInputComponent* InputCompon
 	InputComponent->BindAxis("Thrust", this, &AGameLab2Pawn::ThrustInput);
 	InputComponent->BindAxis("MoveUp", this, &AGameLab2Pawn::MoveUpInput);
 	InputComponent->BindAxis("MoveRight", this, &AGameLab2Pawn::MoveRightInput);
+	InputComponent->BindAction("CollectPickups", IE_Pressed, this, &AGameLab2Pawn::CollectBatteries);
 }
 
 void AGameLab2Pawn::ThrustInput(float Val)
@@ -123,4 +138,36 @@ void AGameLab2Pawn::MoveRightInput(float Val)
 
 	// Smoothly interpolate roll speed
 	CurrentRollSpeed = FMath::FInterpTo(CurrentRollSpeed, TargetRollSpeed, GetWorld()->GetDeltaSeconds(), 2.f);
+}
+
+void AGameLab2Pawn::CollectBatteries()
+{
+	float BatteryPower = 0.f;
+
+	// Get all overlapping actors and store them in a CollectedActors array
+	TArray<AActor*> CollectedActors;
+	CollectionSphere->GetOverlappingActors(CollectedActors);
+	
+	//for each Actor collected
+	for (int32 i = 0; i < CollectedActors.Num(); ++i)
+	{
+		// Cast the collected Actor to ABatteryPickup
+		ABatteryPickup* const TestBattery = Cast<ABatteryPickup>(CollectedActors[i]);
+		// if the cast is successful, and the battery is valid and active
+		if (TestBattery && !TestBattery->IsPendingKill() && TestBattery->bIsActive)
+		{
+			// Store its battery power for adding to the character's power
+			BatteryPower = BatteryPower + TestBattery->PowerLevel;
+			// Call the battery's OnPickedUp function
+			TestBattery->OnPickedUp();
+			// Deactivate the battery
+			TestBattery->bIsActive = false;
+		}
+	}
+
+	if (BatteryPower > 0.f)
+	{
+		// Call the Blueprinted implementation of PowerUp with the total battery power as input
+		PowerUp(BatteryPower);
+	}
 }

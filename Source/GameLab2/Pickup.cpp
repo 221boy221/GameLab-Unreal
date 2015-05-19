@@ -13,7 +13,7 @@ APickup::APickup(const FObjectInitializer & ObjectInitializer)
 
 	// Create the root SphereComponent to handle the pickup's collision
 	BaseCollisionComponent = ObjectInitializer.CreateDefaultSubobject<USphereComponent>(this, TEXT("BaseSphereComponent"));
-
+	
 	// Set the SphereComponent as the root component
 	RootComponent = BaseCollisionComponent;
 
@@ -41,7 +41,7 @@ void APickup::BeginPlay()
 void APickup::Tick( float DeltaTime )
 {
 	Super::Tick( DeltaTime );
-	UE_LOG(LogTemp, Warning, TEXT("Testing UE_LOG, Time Per Frame = %f"), DeltaTime);
+	//UE_LOG(LogTemp, Warning, TEXT("Testing UE_LOG, Time Per Frame = %f"), DeltaTime);
 }
 
 void APickup::OnPickedUp_Implementation() 
