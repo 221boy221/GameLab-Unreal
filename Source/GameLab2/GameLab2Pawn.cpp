@@ -8,9 +8,9 @@ AGameLab2Pawn::AGameLab2Pawn(const FObjectInitializer & ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Set a base power level for the character
-	PowerLevel = 2000.f;
+	PowerLevel = 1000.f;
 	// Set the dependence of speed on the powerlevel
-	SpeedFactor = 0.75f;
+	SpeedFactor = 0.4f;
 	BaseSpeed = 10.f;
 
 	// Structure to hold one-time initialization
@@ -46,18 +46,20 @@ AGameLab2Pawn::AGameLab2Pawn(const FObjectInitializer & ObjectInitializer)
 	CollectionSphere = ObjectInitializer.CreateDefaultSubobject<USphereComponent>(this, TEXT("CollectionSphere"));
 	CollectionSphere->AttachTo(RootComponent);
 	CollectionSphere->SetSphereRadius(200.f);
+	CollectionSphere->OnComponentBeginOverlap.AddDynamic(this, &AGameLab2Pawn::CollectBatteries);
 
 	// Set handling parameters
 	Acceleration = 500.f;
 	TurnSpeed = 50.f;
 	MaxSpeed = 4000.f;
-	MinSpeed = 500.f;
-	CurrentForwardSpeed = 500.f;
+	MinSpeed = 300.f;
+	CurrentForwardSpeed = 300.f;
 }
 
 void AGameLab2Pawn::Tick(float DeltaSeconds)
 {
-	const FVector LocalMove = FVector(CurrentForwardSpeed * DeltaSeconds, 0.f, 0.f);
+	SpeedFactor = .25f * (PowerLevel / 100);
+	const FVector LocalMove = FVector((CurrentForwardSpeed * SpeedFactor) * DeltaSeconds, 0.f, 0.f);
 
 	// Move plan forwards (with sweep so we stop when we collide with things)
 	AddActorLocalOffset(LocalMove, true);
@@ -74,7 +76,13 @@ void AGameLab2Pawn::Tick(float DeltaSeconds)
 	// Call any parent class Tick implementation
 	Super::Tick(DeltaSeconds);
 
-	
+	if (PowerLevel > 0) {
+		PowerLevel -= DeltaSeconds * 20;
+	}
+	else {
+		PowerLevel = 0;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("PowerLevel: %f"), this->PowerLevel);
 }
 
 void AGameLab2Pawn::ReceiveHit(class UPrimitiveComponent* MyComp, class AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
@@ -91,22 +99,37 @@ void AGameLab2Pawn::SetupPlayerInputComponent(class UInputComponent* InputCompon
 	check(InputComponent);
 
 	// Bind our control axis' to callback functions
-	InputComponent->BindAxis("Thrust", this, &AGameLab2Pawn::ThrustInput);
 	InputComponent->BindAxis("MoveUp", this, &AGameLab2Pawn::MoveUpInput);
 	InputComponent->BindAxis("MoveRight", this, &AGameLab2Pawn::MoveRightInput);
-	InputComponent->BindAction("CollectPickups", IE_Pressed, this, &AGameLab2Pawn::CollectBatteries);
+	InputComponent->BindAxis("Brake", this, &AGameLab2Pawn::ThrustInput);
+}
+
+void AGameLab2Pawn::BrakeInput(float Val)
+{
+	//CurrentForwardSpeed = 0.f;
 }
 
 void AGameLab2Pawn::ThrustInput(float Val)
 {
+	Val *= 100.f;
+	UE_LOG(LogTemp, Warning, TEXT("BrakeInput Val: %f"), Val);
+
 	// Is there no input?
-	bool bHasInput = !FMath::IsNearlyEqual(Val, 0.f);
+	//bool bHasInput = !FMath::IsNearlyEqual(Val, 0.f);
+	bool bHasInput = (Val != NULL);
+	UE_LOG(LogTemp, Warning, TEXT("bHasInput: %s"), bHasInput ? TEXT("true") : TEXT("false"));
+
 	// If input is not held down, reduce speed
 	float CurrentAcc = bHasInput ? (Val * Acceleration) : (-0.5f * Acceleration);
+	UE_LOG(LogTemp, Warning, TEXT("CurrentAcc: %f"), CurrentAcc);
+
 	// Calculate new speed
 	float NewForwardSpeed = CurrentForwardSpeed + (GetWorld()->GetDeltaSeconds() * CurrentAcc);
+	UE_LOG(LogTemp, Warning, TEXT("NewForwardSpeed: %f"), NewForwardSpeed);
+
 	// Clamp between MinSpeed and MaxSpeed
 	CurrentForwardSpeed = FMath::Clamp(NewForwardSpeed, MinSpeed, MaxSpeed);
+	UE_LOG(LogTemp, Warning, TEXT("CurrentForwardSpeed: %f"), CurrentForwardSpeed);
 }
 
 void AGameLab2Pawn::MoveUpInput(float Val)
@@ -140,7 +163,7 @@ void AGameLab2Pawn::MoveRightInput(float Val)
 	CurrentRollSpeed = FMath::FInterpTo(CurrentRollSpeed, TargetRollSpeed, GetWorld()->GetDeltaSeconds(), 2.f);
 }
 
-void AGameLab2Pawn::CollectBatteries()
+void AGameLab2Pawn::CollectBatteries(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult)
 {
 	float BatteryPower = 0.f;
 
@@ -169,5 +192,11 @@ void AGameLab2Pawn::CollectBatteries()
 	{
 		// Call the Blueprinted implementation of PowerUp with the total battery power as input
 		PowerUp(BatteryPower);
+		UE_LOG(LogTemp, Warning, TEXT("BatteryPower > 0, putting it into the player's powerlvl"));
 	}
+}
+
+void AGameLab2Pawn::PowerUp(float power)
+{
+	this->PowerLevel += power;
 }

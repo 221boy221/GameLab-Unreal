@@ -8,7 +8,7 @@ ABatteryPickup::ABatteryPickup(const FObjectInitializer & ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	// Base power level of the battery
-	PowerLevel = 150.f;
+	PowerLevel = 500.f;
 
 }
 

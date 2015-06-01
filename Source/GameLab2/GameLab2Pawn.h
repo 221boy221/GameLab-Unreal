@@ -48,15 +48,17 @@ public:
 protected:
 	/** Called when we press a key, to collect any batteries inside the SphereComponent */
 	UFUNCTION(BlueprintCallable, category = "Power")
-	void CollectBatteries();
+	void CollectBatteries(class AActor* OtherActor, class UPrimitiveComponent* OtherComp, int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
 
 	/** Called by CollectBatteries() to use the Blueprinted PowerUp functionality */
-	UFUNCTION(BlueprintImplementableEvent, Category = "Power")
-	void PowerUp(float BatteryPower);
+	UFUNCTION(Category = "Power")
+	void PowerUp(float power);
 
 	// Begin APawn overrides
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override; // Allows binding actions/axes to functions
 	// End APawn overrides
+
+	void BrakeInput(float Val);
 
 	/** Bound to the thrust axis */
 	void ThrustInput(float Val);
